@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Quantum Computer Metrics – Circuit View</title>
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+--bg:#e9f3ee;--grid:#cfe3d8;--ink:#1b2a33;--panel:#fff;--muted:#5b6b73;--led:#d9e2e6}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#12201c;--grid:#1d332c;--ink:#e8f1ee;--panel:#1c2b32;--muted:#9fb3ba;--led:#2c3d45}}
+:root[data-theme="dark"]{--bg:#12201c;--grid:#1d332c;--ink:#e8f1ee;--panel:#1c2b32;--muted:#9fb3ba;--led:#2c3d45}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;
+background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);background-size:20px 20px;min-height:100vh}
+.wrap{max-width:440px;margin:0 auto;padding:12px}
+.bar{display:flex;justify-content:space-between;align-items:center;background:var(--panel);border-radius:10px;padding:8px 12px;font-weight:700;font-size:14px}
+.bar small{color:var(--muted);font-weight:500}
+svg{width:100%;height:auto;display:block;margin-top:8px}
+.cap{background:var(--panel);border-radius:10px;padding:10px 12px;font-size:14px;line-height:1.4;min-height:62px}
+.cap b{display:block;font-size:16px;margin-bottom:2px}
+.ctl{display:flex;gap:8px;align-items:center;margin-top:8px}
+button{background:var(--panel);color:var(--ink);border:1px solid var(--muted);border-radius:8px;padding:8px 12px;font-size:14px}
+.prog{flex:1;height:6px;background:var(--led);border-radius:3px;overflow:hidden}
+.prog i{display:block;height:100%;width:0;background:#2f7fe0;transition:width .4s}
+.w{fill:none;stroke-width:3;stroke-dasharray:4 4;animation:flow .8s linear infinite}
+@keyframes flow{to{stroke-dashoffset:-8}}
+.q{animation:pulse 1.6s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.35}}
+.seg{transition:fill .35s}
+.fine{font-size:11px;color:var(--muted);margin-top:8px;text-align:center}
+</style></head><body><div class="wrap">
+<div class="bar"><span id="ttl">Metric</span><small id="step">1 / 7</small></div>
+<svg id="s" viewBox="0 0 360 436" role="img" aria-label="Animated circuit comparing six types of quantum computers"></svg>
+<div class="cap" id="cap"></div>
+<div class="ctl"><button id="pp">⏸</button><button id="rp">↻</button><div class="prog"><i id="pg"></i></div></div>
+<div class="fine">Approximate published figures as of Nov 2026 (IBM, Quantinuum, IonQ, QuEra, Xanadu, PsiQuantum, Diraq, Microsoft). Not one device; bars are relative.</div>
+</div>
+<script>
+const T=[["Superconducting","#f08a24"],["Trapped ion","#2f7fe0"],["Neutral atom","#9b59d0"],["Photonic","#1fa88a"],["Silicon spin","#d6455d"],["Topological","#8a8f98"]];
+const S=[
+{t:"Qubit count",c:"Largest gate-model chip: IBM Condor, 1,121 (IBM’s production Heron has 156). Neutral atoms trap the most atoms, but commercial machines run ~260. Topological: no working qubit verified.",
+v:[["156",.55],["98",.5],["6,100 atoms",1],["12",.3],["~12",.3],["Disputed",.03]]},
+{t:"2-qubit gate fidelity",c:"Best published: ~99.99% on a trapped-ion prototype (IonQ). Photonic shows fusion-gate fidelity, which isn’t directly comparable.",
+v:[["99.5%",.6],["99.92%",.96],["99.84%",.88],["99.2%",.45],["99%+",.4],["Not shown",.04]]},
+{t:"Coherence time",c:"How long a qubit keeps its state. Photons don’t decay but can be lost. Microsoft claims ~20 s parity lifetime for topological, still disputed.",
+v:[["~0.2 ms",.3],["~1 s+",.95],["~1–10 s",.9],["Loss-limited",.65],["~ms",.45],["Claimed ~20 s",.5]]},
+{t:"Gate speed",c:"Time per operation. Fast gates fit more steps inside the coherence window.",
+v:[["~50 ns",.95],["~50 µs",.2],["~1 µs",.5],["~ns",.9],["~100 ns",.8],["TBD",.25]]},
+{t:"Connectivity",c:"Which qubits can talk directly. Fewer swaps means fewer errors.",
+v:[["Neighbors",.3],["All-to-all",1],["Movable",.85],["Via optics",.7],["Neighbors",.3],["TBD",.2]]},
+{t:"Operating temperature",c:"Longer bar = warmer and easier to run. Superconducting chips need a dilution fridge near absolute zero; ions and atoms sit in room-temperature vacuum.",
+v:[["~15 mK",.05],["Room (vacuum)",.95],["Room (vacuum)",.95],["Mixed",.6],["~mK–1 K",.2],["~mK",.05]]},
+{t:"Strength at a glance",c:"No single winner. Match the hardware to your workload: speed, precision, scale, networking or manufacturability.",
+v:[["Fast",.8],["Precise",.8],["Scalable",.8],["Networked",.8],["Chip-ready",.8],["Emerging",.3]]}];
+const s=document.getElementById('s'),W=170,H=140;
+function card(k){const x=k%2?184:6,y=Math.floor(k/2)*148,col=T[k][1];
+let o=`<g><rect x="${x}" y="${y}" width="${W}" height="${H}" rx="10" fill="var(--panel)" stroke="${col}" stroke-width="3"/>
+<rect x="${x+10}" y="${y+10}" width="34" height="26" rx="4" fill="#2b3640"/>`;
+for(let i=0;i<4;i++)o+=`<circle class="q" style="animation-delay:${i*.2}s" cx="${x+18+(i%2)*18}" cy="${y+18+Math.floor(i/2)*11}" r="3.5" fill="${col}"/>`;
+o+=`<text x="${x+52}" y="${y+27}" font-size="12" font-weight="700" fill="${col}">${T[k][0]}</text>
+<path class="w" stroke="${k%2?'#2a2':'#e33'}" d="M${x+27} ${y+36} V${y+50}"/>
+<rect x="${x+10}" y="${y+50}" width="150" height="34" rx="5" fill="#1d2a22"/>
+<text id="v${k}" x="${x+85}" y="${y+73}" text-anchor="middle" font-size="15" font-family="monospace" fill="#5dff9a">--</text>`;
+for(let i=0;i<10;i++)o+=`<rect class="seg" id="s${k}_${i}" x="${x+10+i*15.4}" y="${y+96}" width="12" height="26" rx="2" fill="var(--led)"/>`;
+return o+`<text x="${x+10}" y="${y+135}" font-size="8" fill="var(--muted)">LOW</text><text x="${x+160}" y="${y+135}" text-anchor="end" font-size="8" fill="var(--muted)">HIGH</text></g>`}
+s.innerHTML=T.map((_,k)=>card(k)).join("");
+let i=0,playing=true,tm;
+function show(n){i=n;const m=S[n];
+ttl.textContent=m.t;step.textContent=(n+1)+" / "+S.length;
+cap.innerHTML=`<b>${m.t}</b>${m.c}`;pg.style.width=((n+1)/S.length*100)+"%";
+m.v.forEach((d,k)=>{document.getElementById("v"+k).textContent=d[0];
+const lit=Math.round(d[1]*10);
+for(let j=0;j<10;j++)document.getElementById(`s${k}_${j}`).setAttribute("fill",j<lit?(j<5?"#3ddc84":j<8?"#ffd23f":"#ff5a4f"):"var(--led)");});}
+function start(){clearInterval(tm);tm=setInterval(()=>show((i+1)%S.length),4000)}
+pp.onclick=()=>{playing=!playing;pp.textContent=playing?"⏸":"▶";playing?start():clearInterval(tm)};
+rp.onclick=()=>{show(0);if(playing)start()};
+show(0);start();
+</script></body></html>
